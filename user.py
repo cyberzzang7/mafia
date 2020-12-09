@@ -5,6 +5,8 @@ jobs_num = codes.jobs_random()
 
 class User:
 
-    def __init__(self, name, life):
+    def __init__(self, name, job, life, voted):
         self.name = name
+        self.job = job
         self.life = life
+        self.voted = voted

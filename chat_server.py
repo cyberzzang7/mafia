@@ -1,7 +1,7 @@
 import codes
+import server_add as sa
 import time
 import pyautogui
-import server_add as sa
 from user import User
 
 #!/usr/bin/env python3
@@ -16,9 +16,13 @@ day_count = 1   # 날 카운트
 time_day = 30  # 낮 시간
 time_vote = 20  # 투표 시간
 time_night = 20  # 밤 시간
-life = '1'
-mafia = 'false'
-people_num = 0
+life = 1        # 생명 갯수
+users = []
+votes = []
+
+
+mafia = 'false'  # 마피아 계열 직업인지 아닌지
+people_temp = 0  # 직업 배열 temp
 
 # 마피아 게임 시작 시 + 클라이언트 연결 시
 
@@ -47,38 +51,53 @@ def handle_client(client):  # Takes client socket as argument.
     global time_night
     global life
     global jobs_num
-    global people_num
+    global people_temp
 
     name = client.recv(BUFSIZ).decode("utf8")
     welcome = 'Welcome %s! If you ever want to quit, type {quit} to exit.' % name
     client.send(bytes(welcome, "utf8"))
     msg = "%s has joined the chat!" % name
 
-    user1 = User(name=jobs[jobs_num[people_num]], life=1)
-    print(user1.name)
-    print(user1.life)
-    people_num += 1
+    users.append(
+        User(name=name, job=jobs[jobs_num[people_temp]], life=1, voted=0))
+    votes.append(0)
+    print(users[people_temp].name)
+    print(users[people_temp].job)
+    people_temp += 1
     count += 1
     msg += " %d / 8 " % count
     broadcast(bytes(msg, "utf8"))
     clients[client] = name
+    print(name)
 
     # 채팅과 게임 동시 시작 구현 by Thread
     th1 = Thread(target=Chatting, args=(client, name, ))
     th2 = Thread(target=game_started, args=(client,))
-    # th3 = Thread(target=autoScroll)
+    th3 = Thread(target=autoScroll)
     th1.start()
     th2.start()
-    # th3.start()
+    th3.start()
 
 # 채팅
 
 
 def Chatting(client, name):
     global count
+    global autoScroll
+    global users
+
     while True:
         msg = client.recv(BUFSIZ)
-        if msg != bytes("{quit}", "utf8"):
+        if bytes("{vote}", "utf8") in msg:
+            msg = (str)(msg).replace('{vote}', '')
+            print(msg)
+            for i in range(len(users)):
+                if("b'"+users[i].name+"'" == msg):
+                    users[i].voted += 1
+                    print(users[i].voted)
+            msg += "를 투표하셨습니다."
+            client.send(bytes(msg, "utf8"))
+        elif msg != bytes("{quit}", "utf8"):
             broadcast(msg, name+": ")
         else:
             client.send(bytes("{quit}", "utf8"))
@@ -89,6 +108,12 @@ def Chatting(client, name):
             msg += " %d / 8 " % count
             broadcast(bytes(msg, "utf8"))
             break
+
+
+def dead():
+    global votes
+    max_idx = votes.index(max(votes))
+    print(users[max_idx].name)
 
 
 def broadcast(msg, prefix=""):  # prefix is for name identification.
@@ -102,22 +127,24 @@ def broadcast(msg, prefix=""):  # prefix is for name identification.
 
 def game_started(client):
     global count    # 사람 수
-    global jobs     # 직업 배열
+    # global jobs     # 직업 배열
+    global users    # 직업 객체 배열
+
+    # jobs_num = codes.jobs_random();
 
     if(count == 3):
-        global jobs_num
         global isGameStarted
         isGameStarted = True
         temp = 0   # 직업 랜덤 인덱스 배열 증가 숫자
         msg = "Mafia-Game is start!!\n"
-
         broadcast(bytes(msg, "utf8"))
         for client in clients:
-            msg = "당신은 " + jobs[jobs_num[temp]] + "입니다. "
-            msg2 = "\n당신의 목숨은입니다."
+            # msg = "당신은 " + jobs[jobs_num[temp]] + "입니다. "
+            msg = "당신은 " + users[temp].job + "입니다. "
             client.send(bytes(msg, "utf8"))
             temp += 1
         timer()
+
 
 # 타이머 함수
 
@@ -147,7 +174,7 @@ def timer():
                     broadcast(bytes(msg, "utf8"))
                 sec = sec-1
                 time.sleep(1)
-
+            dead()
             # 투표시간
             msg = "\n투표시간입니다."
             broadcast(bytes(msg, "utf8"))
@@ -175,19 +202,22 @@ def timer():
                     broadcast(bytes("\n5초 남았습니다", "utf8"))
                 sec2 = sec2-1
                 time.sleep(1)
-
+                if(sec2 == 0):
+                    # 마피아가 죽이는 변수 실행
+                    print("누가 뒤졌습니다.")
             day_count += 1  # 날 증가
+
             if (day_count == 3):
                 break
 
 # auto scroll
 
 
-# def autoScroll():
-#     pyautogui.time.sleep(3)
-#     while True:
-#         pyautogui.scroll(-3)
-#         pyautogui.time.sleep(1)
+def autoScroll():
+    pyautogui.time.sleep(3)
+    while True:
+        pyautogui.scroll(-3)
+        pyautogui.time.sleep(1)
 
 
 clients = {}
