@@ -5,24 +5,29 @@ import time
 from socket import AF_INET, socket, SOCK_STREAM
 from threading import Thread
 count = 0       # 사람 수 카운트
-jobs = ["마피아", "마피아", "시민", "시민", "시민", "군인", "의사", "경찰"] # 직업 배열
+jobs = ["마피아", "마피아", "시민", "시민", "시민", "군인", "의사", "경찰"]  # 직업 배열
 isGameStarted = False   # 게임 시작 여부
 day_count = 1   # 날 카운트
 time_day = 30  # 낮 시간
 time_vote = 20  # 투표 시간
-time_night = 20 # 밤 시간
+time_night = 20  # 밤 시간
 
 # 마피아 게임 시작 시 + 클라이언트 연결 시
+
+
 def accept_incoming_connections():
     """Sets up handling for incoming clients."""
     while True:
         client, client_address = SERVER.accept()
         print("%s:%s has connected." % client_address)
-        client.send(bytes("Mafia Game! Now type your name and press enter!", "utf8"))
+        client.send(
+            bytes("Mafia Game! Now type your name and press enter!", "utf8"))
         addresses[client] = client_address
         Thread(target=handle_client, args=(client,)).start()
 
 # 클라이언트 접속 시 프로그램
+
+
 def handle_client(client):  # Takes client socket as argument.
     """Handles a single client connection."""
 
@@ -78,7 +83,7 @@ def handle_client(client):  # Takes client socket as argument.
                     broadcast(bytes("5초 남았습니다", "utf8"))
                 sec2 = sec2-1
                 time.sleep(1)
-            
+
             # 밤
             msg = (str)(day_count) + "번째 밤입니다."
             broadcast(bytes(msg, "utf8"))
@@ -92,7 +97,7 @@ def handle_client(client):  # Takes client socket as argument.
                     broadcast(bytes("5초 남았습니다", "utf8"))
                 sec2 = sec2-1
                 time.sleep(1)
-            
+
             day_count += 1  # 날 증가
             if (day_count == 3):
                 break
@@ -111,6 +116,7 @@ def handle_client(client):  # Takes client socket as argument.
             broadcast(bytes(msg, "utf8"))
             break
 
+
 def broadcast(msg, prefix=""):  # prefix is for name identification.
     """Broadcasts a message to all the clients."""
 
@@ -118,16 +124,18 @@ def broadcast(msg, prefix=""):  # prefix is for name identification.
         sock.send(bytes(prefix, "utf8")+msg)
 
 # 사람 수가 8명이 되면 마피아 게임 시작
+
+
 def game_started(client):
     global count    # 사람 수
     global jobs     # 직업 배열
 
-    jobs_num = codes.jobs_random();
+    jobs_num = codes.jobs_random()
 
     if(count == 3):
         global isGameStarted
         isGameStarted = True
-        temp = 0;   # 직업 랜덤 인덱스 배열 증가 숫자
+        temp = 0   # 직업 랜덤 인덱스 배열 증가 숫자
         msg = "Mafia-Game is start!!\n"
         broadcast(bytes(msg, "utf8"))
         for client in clients:
@@ -135,7 +143,7 @@ def game_started(client):
             client.send(bytes(msg, "utf8"))
             temp += 1
 
-        
+
 clients = {}
 addresses = {}
 

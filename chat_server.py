@@ -19,8 +19,7 @@ time_night = 20  # 밤 시간
 life = 1        # 생명 갯수
 users = []
 votes = []
-
-
+kill_name = ''
 mafia = 'false'  # 마피아 계열 직업인지 아닌지
 people_temp = 0  # 직업 배열 temp
 
@@ -59,11 +58,12 @@ def handle_client(client):  # Takes client socket as argument.
     msg = "%s has joined the chat!" % name
 
     users.append(
-        User(name=name, job=jobs[jobs_num[people_temp]], life=1, voted=0))
+        User(name=name, job=jobs[jobs_num[people_temp]], life=1))
     votes.append(0)
     print(users[people_temp].name)
     print(users[people_temp].job)
     people_temp += 1
+
     count += 1
     msg += " %d / 8 " % count
     broadcast(bytes(msg, "utf8"))
@@ -74,9 +74,11 @@ def handle_client(client):  # Takes client socket as argument.
     th1 = Thread(target=Chatting, args=(client, name, ))
     th2 = Thread(target=game_started, args=(client,))
     th3 = Thread(target=autoScroll)
+
     th1.start()
     th2.start()
     th3.start()
+
 
 # 채팅
 
@@ -85,6 +87,7 @@ def Chatting(client, name):
     global count
     global autoScroll
     global users
+    global kill_name
 
     while True:
         msg = client.recv(BUFSIZ)
@@ -93,10 +96,23 @@ def Chatting(client, name):
             print(msg)
             for i in range(len(users)):
                 if("b'"+users[i].name+"'" == msg):
-                    users[i].voted += 1
-                    print(users[i].voted)
+                    votes[i] += 1
+                    for i in range(len(votes)):
+                        print(votes[i])
             msg += "를 투표하셨습니다."
             client.send(bytes(msg, "utf8"))
+        elif bytes("{kill}", "utf8") in msg:
+            msg = (str)(msg).replace('{kill}', '')
+            print(msg)
+            for i in range(len(users)):
+                if(users[i].name == "마피아"):
+                    if("b'"+users[i].name+"'" == msg):
+                        print(msg)
+                        kill_name = msg
+                        msg += "를 죽일것입니다."
+                        client.send(bytes(msg, "utf8"))
+                        print(kill_name)
+
         elif msg != bytes("{quit}", "utf8"):
             broadcast(msg, name+": ")
         else:
@@ -109,11 +125,21 @@ def Chatting(client, name):
             broadcast(bytes(msg, "utf8"))
             break
 
+# 투표 수가 가장 높을 시 사망
 
-def dead():
+
+def vote_dead():
     global votes
     max_idx = votes.index(max(votes))
-    print(users[max_idx].name)
+    msg = "System : " + users[max_idx].name + "가 투표로 사망하였습니다."
+    print(msg)
+    broadcast(bytes(msg, "utf8"))
+
+
+def mafia_kill(kill_name):
+    msg = "System : " + kill_name + "가 마피아에의해 사망하였습니다."
+    print(msg)
+    broadcast(bytes(msg, "utf8"))
 
 
 def broadcast(msg, prefix=""):  # prefix is for name identification.
@@ -127,10 +153,7 @@ def broadcast(msg, prefix=""):  # prefix is for name identification.
 
 def game_started(client):
     global count    # 사람 수
-    # global jobs     # 직업 배열
     global users    # 직업 객체 배열
-
-    # jobs_num = codes.jobs_random();
 
     if(count == 3):
         global isGameStarted
@@ -139,12 +162,10 @@ def game_started(client):
         msg = "Mafia-Game is start!!\n"
         broadcast(bytes(msg, "utf8"))
         for client in clients:
-            # msg = "당신은 " + jobs[jobs_num[temp]] + "입니다. "
             msg = "당신은 " + users[temp].job + "입니다. "
             client.send(bytes(msg, "utf8"))
             temp += 1
         timer()
-
 
 # 타이머 함수
 
@@ -152,6 +173,8 @@ def game_started(client):
 def timer():
     global isGameStarted
     global day_count
+    global kill_name
+
     if (isGameStarted == True):
         while True:
             # 낮
@@ -174,7 +197,7 @@ def timer():
                     broadcast(bytes(msg, "utf8"))
                 sec = sec-1
                 time.sleep(1)
-            dead()
+
             # 투표시간
             msg = "\n투표시간입니다."
             broadcast(bytes(msg, "utf8"))
@@ -185,9 +208,10 @@ def timer():
                 elif(sec2 == 10):
                     broadcast(bytes("\n10초 남았습니다", "utf8"))
                 elif(sec2 == 5):
-                    broadcast(bytes("\n 남았습니다", "utf8"))
+                    broadcast(bytes("\n5초 남았습니다", "utf8"))
                 sec2 = sec2-1
                 time.sleep(1)
+            vote_dead()
 
             # 밤
             msg = "\n" + (str)(day_count) + "번째 밤입니다."
@@ -202,11 +226,11 @@ def timer():
                     broadcast(bytes("\n5초 남았습니다", "utf8"))
                 sec2 = sec2-1
                 time.sleep(1)
-                if(sec2 == 0):
-                    # 마피아가 죽이는 변수 실행
-                    print("누가 뒤졌습니다.")
+                print(kill_name)
+                # if(sec2 == 0):
+                # 마피아가 죽이는 함수 실행
+            mafia_kill(kill_name)
             day_count += 1  # 날 증가
-
             if (day_count == 3):
                 break
 
